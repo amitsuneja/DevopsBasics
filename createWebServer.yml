@@ -1,0 +1,51 @@
+---
+- name: making changes to localhost
+  hosts: 127.0.0.1
+  connection: local
+  become: no
+  become_user: root
+  tasks:
+  - name: Collecting local date in a variable
+    debug:
+      var=ansible_date_time.date
+  - name: creating directory structure inside home directory of user
+    file:
+      path: ansible_logs/{{ansible_date_time.date}}
+      state: directory
+      owner: amitadmin
+      group: amitadmin
+      mode: "u=rwx,g=r,o=r"
+  - name: creating a log file
+    shell: echo "Ansible job executed" >> ansible_logs/{{ansible_date_time.date}}/log.txt
+
+    
+  - name: docker File executions 
+  hosts: all
+  tasks:
+  - name: copy Dockerfile into Remote machine
+    copy:
+      src: Dockerfile
+      dest: .
+
+  - name: copy war file into Remote machine
+    copy:
+      src: webapp.war
+      dest: .
+
+  - name: Stop the running container
+    command: docker stop customcontainer
+    ignore_errors: True
+
+  - name: remove the running container
+    command: docker rm customcontainer
+    ignore_errors: True
+
+  - name: remove the running image
+    command: docker rmi customimage
+    ignore_errors: True
+
+  - name: Create the image from Docker file
+    command: docker build -t customimage .
+
+  - name: Create and run container
+    command: docker run -d -p 8080:8080 --name customcontainer customimage

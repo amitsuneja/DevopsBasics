@@ -1,0 +1,22 @@
+---
+- name: playbook to copy file from jenkins to ansible server
+  hosts: all
+  become: yes
+  become_user: root
+
+  vars:
+    warFile: /var/lib/jenkins/workspace/BuildOfDevopsBasics/webapp/target/webapp.war
+    dockerFile: /var/lib/jenkins/workspace/BuildOfDevopsBasics/Dockerfile
+  tasks:
+  - name: fetch war file to Ansible Server
+    fetch:
+      src: "{{warFile}}"
+      dest: ./
+      flat: 'yes'
+
+  - name: fetch Dockerfile from jenkins server
+    fetch:
+      src: "{{dockerFile}}"
+      dest: ./
+      flat: 'yes'
+
