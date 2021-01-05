@@ -6,7 +6,7 @@
 
   vars:
     warFile: /var/lib/jenkins/workspace/BuildOfDevopsBasics/webapp/target/webapp.war
-    dockerFile: /var/lib/jenkins/workspace/BuildOfDevopsBasics/Dockerfile
+    dockerFile: /var/lib/jenkins/workspace/BuildOfDevopsBasics/filesToCopyOnAnsibleServer/Dockerfile
   tasks:
   - name: fetch war file to Ansible Server
     fetch:
