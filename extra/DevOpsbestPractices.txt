@@ -1,0 +1,8 @@
+The following are DevOps best practices: 
+
+Continuous Integration
+Continuous Delivery
+Microservices
+Infrastructure as Code
+Monitoring and Logging
+Communication and Collaboration
