@@ -1,25 +1,5 @@
 ---
-- name: making changes to localhost
-  hosts: 127.0.0.1
-  connection: local
-  become: no
-  become_user: root
-  tasks:
-  - name: Collecting local date in a variable
-    debug:
-      var=ansible_date_time.date
-  - name: creating directory structure inside home directory of user
-    file:
-      path: ansible_logs/{{ansible_date_time.date}}
-      state: directory
-      owner: amitadmin
-      group: amitadmin
-      mode: "u=rwx,g=r,o=r"
-  - name: creating a log file
-    shell: echo "Ansible job executed" >> ansible_logs/{{ansible_date_time.date}}/log.txt
-
-    
-  - name: docker File executions 
+- name: docker File executions
   hosts: all
   tasks:
   - name: copy Dockerfile into Remote machine
