@@ -35,3 +35,15 @@ then it will use docker file to create image and finally it will run container
 6. server folder -  project related contain its own pom.xml and few other files and folders
 
 7. webapp folder  - project related contain its own pom.xml and  src/main/webapp/index.js is location of index file
+
+
+
+
+8. ansible_inventory.txt - we created this file manually in ansible server , if you are coping this project then please create this file manually.
+[amitadmin@ansible ~]$ pwd
+/home/amitadmin
+[amitadmin@ansible ~]$ cat ansible_inventory.txt
+[jenkins]
+jenkinsMaster
+[amitadmin@ansible ~]$
+
