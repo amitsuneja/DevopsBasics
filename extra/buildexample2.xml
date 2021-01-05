@@ -1,0 +1,242 @@
+<?xml version="1.0"?>
+<project name="pretzel-crisps" description="Deployment file" default="deploy" phingVersion="2.4.2" >
+
+        <property name="project" value="pretzel-crispssssss" />
+
+        <property name="web_user" value="apache" />
+        <property name="composer_path" value="/usr/bin/composer" />
+        <property name="web_root" value="/var/www/html/" />
+
+        <property name="db_name" value="pretzzzzzel_crisps_db" />
+        <property name="db_user" value="db_user01" />
+
+        <property name="git_reppo" value="git@bucket.org:soupco/pretzel-crisps.git" />
+
+        <property name="fetch_dir" value="${web_root}deployment/fetched/" />
+        <property name="backups_dir" value="${web_root}backup/" />
+        <property name="target_dir" value="${web_root}application/" />
+                <property name="symfony_dir" value="${web_root}application/symfony/" />
+        <property name="configs_dir" value="${web_root}deployment/config" />
+
+        <!-- ========================================
+         Target = prepare
+    ======================================== -->
+    <target name="prepare">
+        <echo msg="Cleaning previous fetch dir"/>
+        <delete dir="${fetch_dir}"/>
+
+        <echo msg="Making a new fetch folder"/>
+        <mkdir dir="${fetch_dir}"/>
+    </target>
+
+    <!-- ========================================
+         Target = fetch
+    ======================================== -->
+    <target name="fetch" depends="prepare">
+                <echo msg="Fetching files from git reppo"/>
+                <gitclone
+                        repository="${git_reppo}"
+                        targetPath="${fetch_dir}"
+                        />
+                <gitcheckout
+                        repository="${fetch_dir}"
+                        branchname="develop" />
+    </target>
+
+    <!-- ========================================
+         Target = backup
+         - backups existing files defined in fileset
+    ======================================== -->
+    <target name="backup">
+        <property name="this_backup_dir" value="${backups_dir}/${DATE}"/>
+        <echo msg="Generating new backup dir ${this_backup_dir}" />
+        <mkdir dir="${this_backup_dir}"/>
+
+        <echo msg="Copying existing files"/>
+        <copy todir="${this_backup_dir}">
+            <fileset dir="${target_dir}">
+                <patternset refid="backup_patternset"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <!-- ========================================
+         Target = backup-configs
+         - backups configs to the config dir from the config patternset
+    ======================================== -->
+    <target name="backup-configs">
+        <echo msg="Backing-up config files"/>
+        <copy todir="${configs_dir}" overwrite="true">
+            <fileset dir="${target_dir}">
+                <patternset refid="config_files_patternset"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="restoreResources">
+        <echo msg="Copy back old resources" />
+        <copy todir="${target_dir}web/">
+            <fileset dir="${backups_dir}/${DATE}/web/">
+                <patternset refid="backup_resource"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <!-- ========================================
+                Target: deploy
+                - deletes the current version, updates it from git and deploys old configs
+    ======================================== -->
+    <target name="deploy">
+        <echo msg="== Deployment starts =="/>
+
+        <!-- backup configs -->
+        <echo msg="Backing up configs"/>
+        <phingcall target="backup-configs"/>
+
+        <!-- backup configs -->
+        <echo msg="Fetch data"/>
+        <phingcall target="fetch"/>
+
+        <!-- backup configs -->
+        <echo msg="Backup data"/>
+        <phingcall target="backup"/>
+
+        <!-- delete existing files -->
+        <echo msg="Deleting existing files"/>
+        <phingcall target="delete-existing-files"/>
+
+        <!-- compy fetched files -->
+        <echo msg="Copying existing files"/>
+        <phingcall target="copy-fetched-files"/>
+
+        <echo msg="Restoring configs"/>
+        <phingcall target="restore-configs"/>
+
+                <echo msg="Restoring resources"/>
+        <phingcall target="restoreResources"/>
+
+                <echo msg="Running composer install"/>
+                <phingcall target="run-composer-install"/>
+
+        <echo msg="Optimizing for production"/>
+        <phingcall target="production-optimize"/>
+    </target>
+
+    <target name="backup-database" description="Database backuping commences">
+        <property name="this_backup_dir" value="${backups_dir}/${DATE}-base"/>
+        <echo msg="Generating new backup dir ${this_backup_dir}" />
+        <mkdir dir="${this_backup_dir}"/>
+        <!-- execute external command mysqldump to backup database -->
+        <echo message="Execing: mysqldump -p -u ${db_user} --single-transaction --quick --lock-tables=false ${db_name} &gt; ${DATE}.sql"/>
+        <exec command="mysqldump -p -u ${db_user} --single-transaction --quick --lock-tables=false ${db_name} &gt; ${DATE}.sql"
+              dir="${this_backup_dir}"
+              escape="false" />
+        <echo message="Database dumped ${this_backup_dir}/${DATE}.sql" />
+    </target>
+
+    <target name="restore-database" description="Database restore commences">
+        <echo message="Restoring database"/>
+        <exec command=" mysql -u ${db_user} -p ${db_name} &lt; ${db_name}.sql"
+              escape="false"
+                />
+        <echo message="Database ${db_name} restored"/>
+    </target>
+
+    <target name="delete-existing-files">
+        <echo msg="Delete existing files"/>
+        <echo msg="First use rm -rf to delete symfony cache dir"/>
+        <exec command="rm -rf app/cache/*" dir="${symfony_dir}"/>
+        <echo msg="Then continue using phing for deletion"/>
+        <delete>
+            <fileset dir="${target_dir}">
+                <patternset refid="target_fileset_patternset"/>
+            </fileset>
+        </delete>
+    </target>
+
+    <target name="copy-fetched-files">
+        <echo msg="Copying fetched files"/>
+        <copy todir="${target_dir}">
+            <fileset dir="${fetch_dir}${project}/">
+                <patternset refid="target_fileset_patternset" />
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="restore-configs">
+        <echo msg="Restoring old config files"/>
+        <copy todir="${target_dir}" overwrite="true">
+            <fileset dir="${configs_dir}">
+                <patternset refid="config_files_patternset"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="fix-permissions">
+        <echo msg="Fixing permissions"/>
+        <exec command="chown -R ${web_user}:${web_user} ./*" dir="${target_dir}"/>
+
+                <echo msg="Chmoding scripts"/>
+                <chmod file="${target_dir}symfony/auto_activity_export.sh" mode="0777" />
+    </target>
+
+    <target name="delete-cache-folder">
+        <echo msg="Deleting cache folder contents"/>
+        <delete>
+            <fileset dir="${symfony_dir}/app/cache">
+                <include name="**"/>
+            </fileset>
+        </delete>
+    </target>
+
+    <target name="run-composer-install">
+        <echo msg="Starting composer install for symfony"/>
+        <composer command="install" composer="${composer_path}">
+            <arg value="--working-dir=${symfony_dir}"/>
+            <arg value="--no-dev"/>
+            <arg value="--optimize-autoloader"/>
+        </composer>
+    </target>
+
+    <target name="production-optimize">
+
+        <!-- run symfony stuff -->
+        <exec command="php app/console cache:clear --env=prod --no-debug" dir="${symfony_dir}"/>
+        <exec command="php app/console assetic:dump --env=prod --no-debug" dir="${symfony_dir}"/>
+
+        <!-- symfony cache recreates parameters file -->
+        <phingcall target="restore-configs"/>
+
+        <!-- fix permissions -->
+        <phingcall target="fix-permissions"/>
+
+    </target>
+
+        <tstamp>
+        <format property="DATE" pattern="%Y-%m-%d_%H:%M:%S" />
+    </tstamp>
+
+    <patternset id="backup_patternset">
+        <include name="symfony/" />
+        <include name="web/" />
+        <exclude name="symfony/app/cache/**"/>
+    </patternset>
+
+    <patternset id="target_fileset_patternset">
+        <include name="symfony/" />
+        <include name="web/" />
+    </patternset>
+
+    <patternset id="backup_resource">
+        <include name="images/" />
+                <include name="documents/" />
+    </patternset>
+
+    <patternset id="config_files_patternset">
+        <include name="symfony/src/Core/Config.php"/>
+        <include name="symfony/app/config/parameters.yml"/>
+        <include name="symfony/app/config/parameters.yml.dist"/>
+        <include name="web/.htaccess"/>
+        <include name="web/robots.txt"/>
+    </patternset>
+</project>
