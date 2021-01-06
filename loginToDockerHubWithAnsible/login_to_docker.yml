@@ -1,0 +1,88 @@
+---
+- hosts: all
+  become: true
+
+  tasks:
+    - name: 'Starting Docker engine'
+      service: # module used to manage services
+        name: 'docker'
+        state: started
+
+    - name: 'Stopping all local running containers'
+      shell: docker stop $(docker ps -qa) 
+      ignore_errors: True
+    
+    - name: 'removing all local containers'
+      shell: docker rm $(docker ps -qa)
+      ignore_errors: True
+
+    - name: 'removing all local images'
+      shell: docker rmi -f $(docker images -q)
+      ignore_errors: True
+
+    - name: 'donwloading image'
+      community.general.docker_image: # module used to manage docker image
+        name: 'httpd'
+        state: present
+        source: pull # tell that pull image for registry
+
+    - name: 'Starting container from downloaded httpd image'
+      community.general.docker_container: # module to manage docker container
+        name: 'ansible' # assign name to container
+        image: 'httpd' # image name form which container is launching
+        detach: yes # same as -d
+        interactive: no # same -it
+        published_ports: '8080:80' #port binding . server 8080 bind to 80 port of inside container httpd
+        container_default_behavior: "no_defaults" # required to tell that didn't use any default options
+
+    - name: build custom image from Docker file
+      docker_image:
+        name: amitsuneja007/my-custom-image
+        tag: v2
+        source: build 
+        build:
+          pull: no
+          path: /home/amitadmin
+        state: present
+
+
+    - name: log into docker hub registry
+      community.general.docker_login:
+        username: amitsuneja007
+        password: secret
+      tags:
+        - recipe6
+
+    - name: Push image to Dockerhub
+      community.general.docker_image:
+        name: amitsuneja007/my-custom-image
+        tag:  v2
+        push: yes     # upload image to dockerhub
+        source: local # means image is already present on disk.
+
+    - name: ensure a container is running
+      community.general.docker_container: # module to manage docker container
+        name: my_container # assign name to container
+        image: tomcat:latest # image name form which container is launching
+        detach: yes # same as -d
+        interactive: no # same -it
+        pull: true # 
+        published_ports: '8090:8080' #port binding . server 8090 bind to 8080 port of inside container tomcat
+        container_default_behavior: "no_defaults" # required to tell that didn't use any default options
+
+    - name: Log out of DockerHub
+      community.general.docker_login:
+        state: absent
+#
+#    - name: Log into private registry and force re-authorization
+#  community.general.docker_login:
+#    registry_url: your.private.registry.io
+#    username: yourself
+#    password: secrets3
+#    reauthorize: yes
+#
+#- name: Log into DockerHub using a custom config file
+#  community.general.docker_login:
+#    username: docker
+#    password: rekcod
+#    config_path: /tmp/.mydockercfg
